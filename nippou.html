@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日報アプリ</title>
+<style>
+  :root{
+    --bg:#fff6fa; --card:#ffffff; --card2:#fef1f6; --line:#ffdfea;
+    --text:#6b5560; --sub:#c79bb0; --accent:#ff8fb1; --accent-d:#ff6f9c;
+    --accent-w:#ffe4ee;
+    --ok:#34d399; --warn:#fbbf24; --info:#60a5fa; --gray:#a8a1a5;
+    --shadow:0 6px 18px rgba(255,143,177,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(900px 500px at 10% -10%, #ffe9f2, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #fff2d9, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    font-size:14px; line-height:1.6; -webkit-text-size-adjust:100%;
+  }
+  header{
+    background:rgba(255,255,255,.8); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+    padding:14px 18px; position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; letter-spacing:.5px; color:#7a5a68}
+  .brand .dot{width:14px; height:14px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-w)}
+  .who{margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--sub)}
+  .who b{color:var(--text)}
+  .conn{font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:#f3ecef; color:var(--sub); white-space:nowrap}
+  .conn.ok{background:rgba(52,211,153,.18); color:#10a97a}
+  .conn.ng{background:rgba(255,143,177,.22); color:var(--accent-d)}
+
+  main{padding:18px; max-width:920px; margin:0 auto}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:16px; margin-bottom:16px; box-shadow:var(--shadow);
+  }
+  .card h2{margin:0 0 12px; font-size:15px; display:flex; align-items:center; gap:8px; color:#7a5a68}
+  .bar-title{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+
+  label.f{display:block; margin:0 0 12px}
+  label.f > span{display:block; font-size:12px; color:var(--sub); margin-bottom:5px; font-weight:700}
+  input,select,textarea,button{font-family:inherit; font-size:14px}
+  input.in,select.in,textarea.in{
+    width:100%; background:#fffafc; border:1.5px solid var(--line); color:var(--text);
+    border-radius:14px; padding:11px 13px; outline:none;
+  }
+  input.in:focus,select.in:focus,textarea.in:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-w)}
+  textarea.in{resize:vertical; min-height:60px}
+
+  button.btn{
+    border:none; background:var(--accent); color:#fff; padding:11px 20px;
+    border-radius:16px; cursor:pointer; font-size:14px; font-weight:800; letter-spacing:.3px;
+    box-shadow:0 4px 12px rgba(255,143,177,.35);
+  }
+  button.btn:hover{background:var(--accent-d)}
+  button.btn.ghost{background:var(--accent-w); color:var(--accent-d); box-shadow:none}
+  button.btn.gray{background:#f3ecef; color:var(--sub); box-shadow:none}
+  button.btn.sm{padding:7px 13px; font-size:12.5px; font-weight:700; border-radius:12px}
+  button.btn:disabled{opacity:.45; cursor:not-allowed}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .spacer{flex:1}
+
+  /* 入力フォームの列 */
+  .addgrid{display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px}
+  .addgrid .wide{grid-column:1 / -1}
+  @media(max-width:560px){ .addgrid{grid-template-columns:1fr 1fr} .addgrid .cat{grid-column:1 / -1} }
+
+  /* サマリー */
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  @media(max-width:560px){ .stats{grid-template-columns:1fr 1fr} }
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; box-shadow:var(--shadow)}
+  .stat b{display:block; font-size:22px; line-height:1.1; font-weight:900; color:#7a5a68}
+  .stat b.accent{color:var(--accent-d)}
+  .stat span{font-size:11.5px; color:var(--sub)}
+
+  /* 一覧 */
+  .ent{
+    border:1px solid var(--line); background:#fffafc; border-radius:16px;
+    padding:11px 13px; margin-bottom:9px;
+  }
+  .ent .head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .ent .time{font-weight:800; font-size:14px; white-space:nowrap; flex:none; color:#7a5a68}
+  .ent .dur{color:var(--sub); font-size:11.5px; font-weight:600; white-space:nowrap; flex:none}
+  .ent .cat-pill{flex:none; white-space:nowrap}
+  .ent .acts{display:flex; gap:6px; margin-left:auto; flex:none}
+  .ent .content{white-space:pre-wrap; word-break:break-word; margin-top:6px}
+  .ent .content.empty{color:var(--sub)}
+  .cat-pill{
+    display:inline-block; padding:3px 11px; border-radius:20px; font-size:11px; font-weight:800;
+    background:var(--accent-w); color:var(--accent-d);
+  }
+  .cat-pill.brk{background:#f3ecef; color:var(--sub)}
+  .empty{color:var(--sub); text-align:center; padding:24px; font-size:13px}
+
+  .datebar{display:flex; align-items:center; gap:8px; margin-bottom:14px}
+  .datebar input{max-width:170px}
+
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px}
+  .tabs button{
+    border:1.5px solid var(--line); background:var(--card); color:var(--sub);
+    padding:8px 18px; border-radius:20px; cursor:pointer; font-size:13px; font-weight:800;
+  }
+  .tabs button.on{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(255,143,177,.35)}
+
+  /* 月：日別バー */
+  .barrow{display:flex; align-items:center; gap:10px; margin:7px 0}
+  .barrow .k{width:88px; font-size:12px; color:var(--sub); flex:none}
+  .barrow .track{flex:1; height:14px; background:#fbe6ee; border-radius:10px; overflow:hidden}
+  .barrow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#ffc0d5); border-radius:10px}
+  .barrow .v{width:78px; text-align:right; font-size:12px; font-weight:700; flex:none; color:#7a5a68}
+
+  .hide{display:none !important}
+  .note{color:var(--sub); font-size:12px}
+
+  /* 名前入力 */
+  #gate{
+    position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(900px 500px at 20% -10%, #ffe0ee, transparent 60%),
+      radial-gradient(900px 500px at 90% 10%, #fff0d6, transparent 55%),
+      var(--bg);
+    padding:20px;
+  }
+  .gate-box{width:100%; max-width:360px; text-align:center; background:var(--card); border:1px solid var(--line); border-radius:24px; padding:32px 24px; box-shadow:var(--shadow)}
+  .gate-logo{font-size:34px; font-weight:900; letter-spacing:2px; margin-bottom:4px; color:#7a5a68}
+  .gate-logo b{color:var(--accent)}
+  .gate-sub{color:var(--sub); font-size:12.5px; margin-bottom:24px}
+  .gate-box input{margin-bottom:12px; text-align:center}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px}
+  .chips button{
+    background:#fffafc; border:1.5px solid var(--line); color:var(--text);
+    padding:8px 14px; border-radius:20px; cursor:pointer; font-size:12.5px; font-weight:700;
+  }
+  .chips button:hover{border-color:var(--accent); background:var(--accent-w)}
+</style>
+</head>
+<body>
+
+<!-- ============ 名前入力 ============ -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">🌸 日<b>報</b></div>
+    <div class="gate-sub">スマホ・PCどちらでも入力できます</div>
+    <input class="in" id="nameIn" placeholder="あなたの名前" autocomplete="name">
+    <button class="btn" id="nameGo" style="width:100%">はじめる</button>
+    <div class="chips" id="nameChips"></div>
+  </div>
+</div>
+
+<!-- ============ メイン ============ -->
+<div id="app" class="hide">
+  <header>
+    <div class="brand"><span class="dot"></span>日<span style="color:var(--accent)">報</span></div>
+    <div class="who"><span id="connBadge" class="conn">…</span><b id="whoName"></b><button class="btn gray sm" onclick="changeName()">変更</button></div>
+  </header>
+  <main>
+    <div class="tabs">
+      <button id="tabDayBtn" class="on" onclick="showTab('day')">入力</button>
+      <button id="tabMonBtn" onclick="showTab('mon')">月まとめ</button>
+    </div>
+
+    <!-- ===== 入力タブ ===== -->
+    <div id="tabDay">
+      <div class="datebar">
+        <button class="btn gray sm" onclick="shiftDay(-1)">◀</button>
+        <input class="in" type="date" id="dayDate" onchange="loadDay()">
+        <button class="btn gray sm" onclick="shiftDay(1)">▶</button>
+        <button class="btn gray sm" onclick="goToday()">今日</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="bar-title"></span><span id="addTitle">作業を追加</span></h2>
+        <div class="addgrid">
+          <label class="f"><span>開始</span><input class="in" type="time" id="fStart"></label>
+          <label class="f"><span>終了</span><input class="in" type="time" id="fEnd"></label>
+          <label class="f cat"><span>カテゴリー</span><select class="in" id="fCat"></select></label>
+          <label class="f wide"><span>業務内容</span><textarea class="in" id="fContent" placeholder="例）わこさん対応 / ぜるにいMTG"></textarea></label>
+        </div>
+        <div class="row">
+          <button class="btn" id="addBtn" onclick="submitEntry()">追加する</button>
+          <button class="btn gray hide" id="cancelBtn" onclick="cancelEdit()">キャンセル</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b id="sStart">–</b><span>稼働開始</span></div>
+        <div class="stat"><b id="sEnd">–</b><span>稼働終了</span></div>
+        <div class="stat"><b class="accent" id="sTotal">0h</b><span>合計稼働</span></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2><span class="bar-title"></span>この日の記録</h2>
+        <div id="dayList"></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="bar-title"></span>スプレッドシートへ反映</h2>
+        <p class="note" id="linkNote" style="margin-top:0">自分のスプレッドシート連携URLを設定すると、この日の内容をボタンで書き込めます。</p>
+        <div class="row">
+          <button class="btn ghost" id="pushBtn" onclick="pushToSheet()">この日を反映</button>
+          <button class="btn gray sm" onclick="toggleLinkCfg()">連携URLの設定</button>
+        </div>
+        <div id="linkCfg" class="hide" style="margin-top:12px">
+          <label class="f"><span>Google Apps Script ウェブアプリURL</span><input class="in" id="gasUrl" placeholder="https://script.google.com/macros/s/……/exec"></label>
+          <button class="btn sm" onclick="saveGasUrl()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 月まとめタブ ===== -->
+    <div id="tabMon" class="hide">
+      <div class="datebar">
+        <button class="btn gray sm" onclick="shiftMonth(-1)">◀</button>
+        <input class="in" type="month" id="monMonth" onchange="loadMonth()">
+        <button class="btn gray sm" onclick="shiftMonth(1)">▶</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="mDays">0</b><span>稼働日数</span></div>
+        <div class="stat"><b class="accent" id="mTotal">0h</b><span>月の合計稼働</span></div>
+        <div class="stat"><b id="mAvg">0h</b><span>1日平均</span></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2><span class="bar-title"></span>日別の稼働</h2>
+        <div id="monDays"></div>
+      </div>
+      <div class="card">
+        <h2><span class="bar-title"></span>カテゴリー別</h2>
+        <div id="monCats"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   Supabase 接続（RP対戦表 / オロログ と同じプロジェクト）
+   ============================================================ */
+const SUPA = {
+  url:"https://capgiqorhrrgaiaogsib.supabase.co",
+  key:"sb_publishable_9VrqdwflR86Sga49QaKoDQ_Ii6HO_Xu"
+};
+
+/* ---- カテゴリー（ここを書き換えれば選択肢を変えられます） ---- */
+const CATEGORIES = ["営業管理","会議","人事対応","その他","休憩"];
+/* 「休憩」など、稼働時間に含めないカテゴリー */
+const BREAK_CATS = ["休憩"];
+
+/* 名前のクイック選択（よく使う人。空でもOK・自由入力できます） */
+const QUICK_NAMES = [];
+
+const NAME_KEY = "nippou-name";
+
+/* ================= 状態 ================= */
+let ME = null;
+let dayEntries = [];   // 表示中の日の記録
+let editingId = null;
+let gasUrl = "";
+let busy = false;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ================= 時刻ユーティリティ ================= */
+function todayStr(){ const d=new Date(),p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+function thisMonthStr(){ const d=new Date(),p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1); }
+function t2m(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }         // "HH:MM" -> 分
+function m2t(min){ min=((min%1440)+1440)%1440; const p=n=>String(n).padStart(2,"0"); return p(Math.floor(min/60))+":"+p(min%60); } // 分 -> "HH:MM"(24h表示)
+function dur(e){ return e.end_min - e.start_min; }                                                    // 作業の長さ(分)
+function isBreak(cat){ return BREAK_CATS.includes(cat); }
+function fmtHours(min){
+  if(!min) return "0h";
+  const h=Math.floor(min/60), m=min%60;
+  return m ? h+"時間"+m+"分" : h+"時間";
+}
+function fmtDateJP(s){ const d=new Date(s+"T00:00:00"),w=["日","月","火","水","木","金","土"][d.getDay()]; return (d.getMonth()+1)+"/"+d.getDate()+"("+w+")"; }
+
+/* ================= 通信 ================= */
+async function api(path, opts={}){
+  const res = await fetch(SUPA.url.replace(/\/+$/,"") + "/rest/v1/" + path, {
+    method: opts.method || "GET",
+    headers: {
+      apikey: SUPA.key, Authorization:"Bearer "+SUPA.key,
+      "Content-Type":"application/json",
+      Prefer: opts.prefer || "return=representation"
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if(!res.ok) throw new Error(res.status+" "+await res.text());
+  return res.status===204 ? null : res.json();
+}
+function setConn(text, cls){ const el=$("connBadge"); if(el){ el.textContent=text; el.className="conn "+(cls||""); } }
+
+async function run(fn){
+  if(busy) return; busy=true; setConn("同期中…","");
+  try{ await fn(); setConn("共有中","ok"); }
+  catch(e){ setConn("接続エラー","ng"); alert("サーバーとの通信に失敗しました。\n\n"+e.message); console.error(e); }
+  finally{ busy=false; }
+}
+
+const store = {
+  async pullDay(date){
+    dayEntries = await api("nippou_entries?person=eq."+encodeURIComponent(ME)+"&date=eq."+date+"&select=*&order=start_min.asc");
+  },
+  async pullMonth(ym){
+    const first=ym+"-01"; const d=new Date(first+"T00:00:00"); const last=new Date(d.getFullYear(),d.getMonth()+1,0);
+    const p=n=>String(n).padStart(2,"0"); const lastStr=last.getFullYear()+"-"+p(last.getMonth()+1)+"-"+p(last.getDate());
+    return await api("nippou_entries?person=eq."+encodeURIComponent(ME)+"&date=gte."+first+"&date=lte."+lastStr+"&select=*&order=date.asc,start_min.asc");
+  },
+  async add(rec){ await api("nippou_entries", {method:"POST", body:rec}); },
+  async update(id, rec){ await api("nippou_entries?id=eq."+id, {method:"PATCH", body:{...rec, updated_at:new Date().toISOString()}}); },
+  async del(id){ await api("nippou_entries?id=eq."+id, {method:"DELETE"}); },
+  async getSettings(){
+    const r = await api("nippou_settings?person=eq."+encodeURIComponent(ME)+"&select=gas_url");
+    return r.length ? (r[0].gas_url||"") : "";
+  },
+  async saveGas(url){
+    await api("nippou_settings", {method:"POST", prefer:"resolution=merge-duplicates", body:{person:ME, gas_url:url, updated_at:new Date().toISOString()}});
+  },
+  async knownNames(){
+    try{ const r = await api("nippou_entries?select=person&order=person.asc"); return [...new Set(r.map(x=>x.person))]; }
+    catch(e){ return []; }
+  }
+};
+
+/* ================= 名前 ================= */
+async function initGate(){
+  // カテゴリー選択肢を用意
+  $("fCat").innerHTML = CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join("");
+  // クイック選択チップ（過去の入力者 + 事前設定）
+  let names = [...QUICK_NAMES];
+  const known = await store.knownNames();
+  known.forEach(n=>{ if(!names.includes(n)) names.push(n); });
+  $("nameChips").innerHTML = names.map(n=>`<button onclick="pickName('${esc(n)}')">${esc(n)}</button>`).join("");
+  const saved = localStorage.getItem(NAME_KEY);
+  if(saved){ enter(saved); }
+}
+function pickName(n){ $("nameIn").value=n; }
+function startFromInput(){ const v=$("nameIn").value.trim(); if(!v){ $("nameIn").focus(); return; } enter(v); }
+async function enter(name){
+  ME = name; localStorage.setItem(NAME_KEY, name);
+  $("gate").classList.add("hide"); $("app").classList.remove("hide");
+  $("whoName").textContent = name;
+  $("dayDate").value = todayStr();
+  $("monMonth").value = thisMonthStr();
+  await run(async()=>{ gasUrl = await store.getSettings(); $("gasUrl").value = gasUrl; updateLinkNote(); });
+  await loadDay();
+}
+function changeName(){ localStorage.removeItem(NAME_KEY); location.reload(); }
+
+/* ================= 入力タブ ================= */
+function showTab(which){
+  $("tabDay").classList.toggle("hide", which!=="day");
+  $("tabMon").classList.toggle("hide", which!=="mon");
+  $("tabDayBtn").classList.toggle("on", which==="day");
+  $("tabMonBtn").classList.toggle("on", which==="mon");
+  if(which==="mon") loadMonth();
+}
+function shiftDay(delta){
+  const d=new Date($("dayDate").value+"T00:00:00"); d.setDate(d.getDate()+delta);
+  const p=n=>String(n).padStart(2,"0"); $("dayDate").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  loadDay();
+}
+function goToday(){ $("dayDate").value=todayStr(); loadDay(); }
+
+async function loadDay(){
+  cancelEdit();
+  await run(async()=>{ await store.pullDay($("dayDate").value); });
+  renderDay();
+}
+
+function renderDay(){
+  // サマリー
+  const work = dayEntries.filter(e=>!isBreak(e.category));
+  const all  = dayEntries;
+  const totalMin = work.reduce((s,e)=>s+dur(e),0);
+  const startMin = all.length ? Math.min(...all.map(e=>e.start_min)) : null;
+  const endMin   = all.length ? Math.max(...all.map(e=>e.end_min)) : null;
+  $("sStart").textContent = startMin==null ? "–" : m2t(startMin);
+  $("sEnd").textContent   = endMin==null   ? "–" : m2t(endMin);
+  $("sTotal").textContent = fmtHours(totalMin);
+
+  // 一覧
+  if(!dayEntries.length){ $("dayList").innerHTML = `<div class="empty">まだ記録がありません。上のフォームから追加してください。</div>`; return; }
+  $("dayList").innerHTML = dayEntries.map(e=>{
+    const brk = isBreak(e.category);
+    return `<div class="ent">
+      <div class="head">
+        <span class="time">${m2t(e.start_min)}–${m2t(e.end_min)}</span>
+        <span class="dur">${fmtHours(dur(e))}</span>
+        <span class="cat-pill ${brk?'brk':''}">${esc(e.category||"—")}</span>
+        <span class="acts">
+          <button class="btn gray sm" onclick="startEdit(${e.id})">修正</button>
+          <button class="btn ghost sm" onclick="delEntry(${e.id})">削除</button>
+        </span>
+      </div>
+      <div class="content ${e.content?'':'empty'}">${e.content?esc(e.content):"（内容なし）"}</div>
+    </div>`;
+  }).join("");
+}
+
+function submitEntry(){
+  const s=t2m($("fStart").value), eRaw=t2m($("fEnd").value);
+  const cat=$("fCat").value, content=$("fContent").value.trim();
+  if(s==null || eRaw==null){ alert("開始と終了の時刻を入れてください。"); return; }
+  let e=eRaw; if(e<=s) e+=1440;   // 日跨ぎ（例 23:00→1:00）
+  const rec={ person:ME, date:$("dayDate").value, start_min:s, end_min:e, category:cat, content };
+  run(async()=>{
+    if(editingId){ await store.update(editingId, rec); }
+    else{ await store.add(rec); }
+    await store.pullDay($("dayDate").value);
+    cancelEdit();
+    renderDay();
+    $("fContent").value="";
+  });
+}
+function startEdit(id){
+  const e=dayEntries.find(x=>x.id===id); if(!e) return;
+  editingId=id;
+  $("fStart").value=m2t(e.start_min); $("fEnd").value=m2t(e.end_min);
+  $("fCat").value=e.category; $("fContent").value=e.content||"";
+  $("addTitle").textContent="作業を修正";
+  $("addBtn").textContent="更新する";
+  $("cancelBtn").classList.remove("hide");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+function cancelEdit(){
+  editingId=null;
+  $("addTitle").textContent="作業を追加";
+  $("addBtn").textContent="追加する";
+  $("cancelBtn").classList.add("hide");
+}
+function delEntry(id){
+  if(!confirm("この記録を削除しますか？")) return;
+  run(async()=>{ await store.del(id); await store.pullDay($("dayDate").value); renderDay(); });
+}
+
+/* ================= スプレッドシート反映 ================= */
+function toggleLinkCfg(){ $("linkCfg").classList.toggle("hide"); }
+function updateLinkNote(){
+  $("linkNote").textContent = gasUrl
+    ? "連携済み。「この日を反映」で自分のスプレッドシートに書き込みます。"
+    : "自分のスプレッドシート連携URLを設定すると、この日の内容をボタンで書き込めます。（後から設定でOK）";
+}
+function saveGasUrl(){
+  const url=$("gasUrl").value.trim();
+  run(async()=>{ await store.saveGas(url); gasUrl=url; updateLinkNote(); $("linkCfg").classList.add("hide"); alert("保存しました。"); });
+}
+function pushToSheet(){
+  if(!gasUrl){ alert("先に「連携URLの設定」から、自分のスプレッドシートのURLを設定してください。"); toggleLinkCfg(); return; }
+  if(!dayEntries.length){ alert("この日の記録がありません。"); return; }
+  const payload={
+    person: ME,
+    date: $("dayDate").value,
+    entries: dayEntries.map(e=>({ start:m2t(e.start_min), end:m2t(e.end_min), start_min:e.start_min, end_min:e.end_min, category:e.category, content:e.content }))
+  };
+  run(async()=>{
+    // GASのウェブアプリはCORSプリフライトを避けるため text/plain で送信
+    const res = await fetch(gasUrl, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(payload) });
+    const txt = await res.text();
+    if(!res.ok) throw new Error(res.status+" "+txt);
+    alert("スプレッドシートに反映しました。");
+  });
+}
+
+/* ================= 月まとめタブ ================= */
+function shiftMonth(delta){
+  const [y,m]=$("monMonth").value.split("-").map(Number);
+  const d=new Date(y, m-1+delta, 1), p=n=>String(n).padStart(2,"0");
+  $("monMonth").value=d.getFullYear()+"-"+p(d.getMonth()+1);
+  loadMonth();
+}
+async function loadMonth(){
+  let rows=[];
+  await run(async()=>{ rows = await store.pullMonth($("monMonth").value); });
+  // 日別に集計
+  const byDay={};
+  rows.forEach(e=>{
+    const work = isBreak(e.category)?0:dur(e);
+    byDay[e.date]=(byDay[e.date]||0)+work;
+  });
+  const days=Object.keys(byDay).filter(d=>byDay[d]>0).sort();
+  const totalMin=days.reduce((s,d)=>s+byDay[d],0);
+  $("mDays").textContent=days.length;
+  $("mTotal").textContent=fmtHours(totalMin);
+  $("mAvg").textContent=days.length?fmtHours(Math.round(totalMin/days.length)):"0h";
+
+  const maxDay=Math.max(1,...days.map(d=>byDay[d]));
+  $("monDays").innerHTML = days.length ? days.map(d=>`
+    <div class="barrow">
+      <div class="k">${fmtDateJP(d)}</div>
+      <div class="track"><i style="width:${Math.round(byDay[d]/maxDay*100)}%"></i></div>
+      <div class="v">${fmtHours(byDay[d])}</div>
+    </div>`).join("") : `<div class="empty">この月の記録はまだありません。</div>`;
+
+  // カテゴリー別（休憩含む・全時間）
+  const byCat={};
+  rows.forEach(e=>{ byCat[e.category]=(byCat[e.category]||0)+dur(e); });
+  const cats=Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  const maxCat=Math.max(1,...cats.map(c=>byCat[c]));
+  $("monCats").innerHTML = cats.length ? cats.map(c=>`
+    <div class="barrow">
+      <div class="k">${esc(c||"—")}</div>
+      <div class="track"><i style="width:${Math.round(byCat[c]/maxCat*100)}%"></i></div>
+      <div class="v">${fmtHours(byCat[c])}</div>
+    </div>`).join("") : `<div class="empty">—</div>`;
+}
+
+/* ================= 起動 ================= */
+$("nameGo").onclick=startFromInput;
+$("nameIn").addEventListener("keydown", e=>{ if(e.key==="Enter") startFromInput(); });
+initGate();
+</script>
+</body>
+</html>
