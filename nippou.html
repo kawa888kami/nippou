@@ -120,6 +120,18 @@
   .hide{display:none !important}
   .note{color:var(--sub); font-size:12px}
 
+  /* かんたん打刻 */
+  .punch-card{border:2px solid var(--accent-w); background:linear-gradient(180deg,#fff,#fff8fb)}
+  .punch-big{width:100%; font-size:17px; padding:16px; border-radius:18px}
+  .punch-big.start{background:var(--ok); box-shadow:0 6px 16px rgba(52,211,153,.35)}
+  .punch-big.start:hover{background:#22c58b}
+  .punch-big.end{background:var(--accent-d); box-shadow:0 6px 16px rgba(255,111,156,.4)}
+  .punchnow{background:var(--card2); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; text-align:center}
+  .punchnow .live{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--accent-d); margin-right:7px; animation:blink 1.4s infinite}
+  .punchnow b{font-size:16px; color:#7a5a68}
+  .punchnow .t{display:block; font-size:12.5px; color:var(--sub); margin-top:5px}
+  @keyframes blink{50%{opacity:.25}}
+
   /* 名前入力 */
   #gate{
     position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
@@ -176,8 +188,27 @@
         <button class="btn gray sm" onclick="goToday()">今日</button>
       </div>
 
+      <div class="card punch-card">
+        <h2><span class="bar-title"></span>かんたん打刻</h2>
+        <div id="punchIdle">
+          <div class="addgrid">
+            <label class="f cat"><span>カテゴリー</span><select class="in" id="pCat"></select></label>
+            <label class="f wide"><span>業務内容（任意）</span><input class="in" id="pContent" placeholder="例）わこさん対応"></label>
+          </div>
+          <button class="btn punch-big start" onclick="punchStart()">🟢 勤務開始</button>
+        </div>
+        <div id="punchRunning" class="hide">
+          <div class="punchnow">
+            <span class="live"></span><b id="punchNowCat">—</b>
+            <span class="t" id="punchNowTime"></span>
+          </div>
+          <button class="btn punch-big end" onclick="punchEnd()">🔴 勤務終了</button>
+        </div>
+      </div>
+
       <div class="card">
-        <h2><span class="bar-title"></span><span id="addTitle">作業を追加</span></h2>
+        <h2><span class="bar-title"></span><span id="addTitle">時間を指定して追加</span></h2>
+        <p class="note" style="margin:-4px 0 12px">打刻を使わずに、開始・終了を自分で入れて追加もできます。記録の修正もここで行います。</p>
         <div class="addgrid">
           <label class="f"><span>開始</span><input class="in" type="time" id="fStart"></label>
           <label class="f"><span>終了</span><input class="in" type="time" id="fEnd"></label>
@@ -257,6 +288,7 @@ const BREAK_CATS = ["休憩"];
 const QUICK_NAMES = [];
 
 const NAME_KEY = "nippou-name";
+const PUNCH_KEY = "nippou-punch";   // 進行中の打刻セッション
 
 /* ================= 状態 ================= */
 let ME = null;
@@ -264,6 +296,7 @@ let dayEntries = [];   // 表示中の日の記録
 let editingId = null;
 let gasUrl = "";
 let busy = false;
+let punchSession = null;   // {date, start_min, category, content}
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -333,7 +366,9 @@ const store = {
 /* ================= 名前 ================= */
 async function initGate(){
   // カテゴリー選択肢を用意
-  $("fCat").innerHTML = CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join("");
+  const catOpts = CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join("");
+  $("fCat").innerHTML = catOpts;
+  $("pCat").innerHTML = catOpts;
   // クイック選択チップ（過去の入力者 + 事前設定）
   let names = [...QUICK_NAMES];
   const known = await store.knownNames();
@@ -351,6 +386,8 @@ async function enter(name){
   $("dayDate").value = todayStr();
   $("monMonth").value = thisMonthStr();
   await run(async()=>{ gasUrl = await store.getSettings(); $("gasUrl").value = gasUrl; updateLinkNote(); });
+  loadPunch(); renderPunch();
+  setInterval(()=>{ if(punchSession) renderPunch(); }, 30000);
   await loadDay();
 }
 function changeName(){ localStorage.removeItem(NAME_KEY); location.reload(); }
@@ -433,9 +470,49 @@ function startEdit(id){
 }
 function cancelEdit(){
   editingId=null;
-  $("addTitle").textContent="作業を追加";
+  $("addTitle").textContent="時間を指定して追加";
   $("addBtn").textContent="追加する";
   $("cancelBtn").classList.add("hide");
+}
+
+/* ================= かんたん打刻 ================= */
+function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function loadPunch(){ try{ punchSession=JSON.parse(localStorage.getItem(PUNCH_KEY)||"null"); }catch(e){ punchSession=null; } }
+function savePunch(){ if(punchSession) localStorage.setItem(PUNCH_KEY, JSON.stringify(punchSession)); else localStorage.removeItem(PUNCH_KEY); }
+function renderPunch(){
+  if(!$("punchIdle")) return;
+  if(punchSession){
+    $("punchIdle").classList.add("hide");
+    $("punchRunning").classList.remove("hide");
+    $("punchNowCat").textContent = punchSession.content ? punchSession.content+"（"+punchSession.category+"）" : punchSession.category;
+    const elapsed=((nowMin()-punchSession.start_min)%1440+1440)%1440;
+    $("punchNowTime").textContent = m2t(punchSession.start_min)+" 開始・経過 "+fmtHours(elapsed);
+  }else{
+    $("punchIdle").classList.remove("hide");
+    $("punchRunning").classList.add("hide");
+  }
+}
+function punchStart(){
+  const today=todayStr();
+  punchSession={ date:today, start_min:nowMin(), category:$("pCat").value, content:$("pContent").value.trim() };
+  savePunch();
+  if($("dayDate").value!==today){ $("dayDate").value=today; loadDay(); }
+  renderPunch();
+}
+function punchEnd(){
+  if(!punchSession) return;
+  const s=punchSession.start_min; let e=nowMin();
+  if(e===s){ alert("開始と終了が同じ時刻です。1分以上たってから押してください。"); return; }
+  if(e<s) e+=1440;   // 日跨ぎ
+  const rec={ person:ME, date:punchSession.date, start_min:s, end_min:e, category:punchSession.category, content:punchSession.content };
+  const doneDate=punchSession.date;
+  run(async()=>{
+    await store.add(rec);
+    punchSession=null; savePunch();
+    $("pContent").value="";
+    renderPunch();
+    if($("dayDate").value===doneDate){ await store.pullDay(doneDate); renderDay(); }
+  });
 }
 function delEntry(id){
   if(!confirm("この記録を削除しますか？")) return;
